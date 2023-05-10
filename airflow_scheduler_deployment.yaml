@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler
+spec:
+  selector:
+   matchLabels:
+     app: airflow
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: airflow
+        tier: scheduler
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: scheduler
+        image: {{ACRName}}.azurecr.io/edi-modernization/airflow:{{BASEIMAGE_VERSION}}
+        envFrom:
+        - configMapRef:
+            name: config-airflow      
+        volumeMounts:
+        - mountPath: /usr/local/airflow/dags
+          name: ediairflowdags
+        - mountPath: /usr/local/airflow/logs
+          name: ediairflowlogs
+        args: ["scheduler"]
+      volumes:
+      - name: ediairflowlogs
+        persistentVolumeClaim:
+          claimName: airflow-pv-claim
+      - name: ediairflowdags
+        azureFile:
+          secretName: azure-secret
+          shareName: ediairflowdags
+          readOnly: false 
+      imagePullSecrets:
+      - name: edi-registry

@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: airflow-pv-volume
+  labels:
+    type: local
+    app: airflow
+spec:
+  storageClassName: azurefile
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteMany
+  azureFile:
+    secretName: azure-secret
+    shareName: ediairflowlogs
+    readOnly: false
+  mountOptions:
+  - dir_mode=0777
+  - file_mode=0777
+  - uid=50000
+  - gid=50000
+  - mfsymlinks
+  - nobrl    
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: airflow-pv-claim
+  labels:
+    app: airflow
+spec:
+  storageClassName: azurefile
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi

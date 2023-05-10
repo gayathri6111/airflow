@@ -1,0 +1,77 @@
+pipeline{
+    agent any
+    environment{
+        GIT_URL = "https://conduent-ghs-02.visualstudio.com/CMdS%20EDI/_git/edi-devops"
+        GIT_CREDS = "azuregit"
+        ACR_ID     = credentials('acr-id')
+        ACR_SECRET = credentials('acr-secret')  
+        ACR_NAME = "ghcmdsedidcr01"
+        SIT_ACR_NAME = "ghscmdsedisitcr01"
+        SIT_ACR_ID = credentials('sit-acr-id')
+        SIT_ACR_SECRET = credentials('sit-acr-secret')
+        ACR_MO_NAME = "ghscmdsedimocr01"											
+        MO_ACR_ID = credentials('mo-acr-id')
+        MO_ACR_SECRET = credentials('mo-acr-secret')
+        DEV_CLUSTERNAME = "ghs-cmds-edi-dev-aks-c01"						  
+        MO_CLUSTERNAME = "ghs-cmds-edi-MO-aks-c01"
+        SIT_CLUSTERNAME = "ghs-cmds-edi-sit-aks-c01"
+			  
+    }
+    parameters{
+        booleanParam(name: 'DEV_DEPLOY', defaultValue: false, description: 'Select this to deploy the dev  kafka in AWS')
+        booleanParam(name: 'SIT_DEPLOY', defaultValue: false, description: 'Select this to deploy the sit kafka in AWS')
+        gitParameter(name: 'BRANCH', defaultValue: 'none', description: 'Select the name of the branch you need to build and deploy', branchFilter: 'origin/(.*)', type: 'PT_BRANCH')
+    }
+    stages{
+        stage('Checkout'){
+            steps{
+                cleanWs()
+                script{
+                    def now = new Date()
+                    env.TIMESTAMP = now.format("yyyyMMddHHmmss",TimeZone.getTimeZone("America/New_York"))
+                    def myGitBranch = "*/" + "${params.BRANCH}"
+                    def scmVars = checkout([
+                        $class: 'GitSCM', 
+                        branches: [[name: "${myGitBranch}"]],
+                        userRemoteConfigs: [[credentialsId: "${GIT_CREDS}",url: "${GIT_URL}"]]
+                    ])
+                }
+            }
+        }
+           
+        stage('DEV_DEPLOY'){
+            when{
+                expression{params.DEV_DEPLOY}
+            }
+            steps{
+                script{
+                    sh """
+                        cd airflow
+                        kubectl config use-context ${DEV_CLUSTERNAME}
+                        kubectl delete configmap config-airflow -n edi-airflow
+                        kubectl create -f ./airflow-configmap.yml --validate=false                       
+                       
+                        
+                    """
+                }
+            }
+        }
+         stage('SIT_DEPLOY'){
+            when{
+                expression{params.SIT_DEPLOY}
+            }
+            steps{
+                script{
+                    sh """
+                        cd airflow
+                        kubectl config use-context ${SIT_CLUSTERNAME}
+                        kubectl delete configmap config-airflow -n edi-airflow
+                        kubectl create -f ./airflow-configmap-SIT.yml --validate=false                       
+                       
+                        
+                    """
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  replicas: 1
+  selector:
+   matchLabels:
+     app: airflow
+  template:
+    metadata:
+      labels:
+        app: airflow
+        tier: redis
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: redis
+        image: {{ACRName}}.azurecr.io/edi-modernization/redis-server:{{BASEIMAGE_VERSION}}
+        ports:
+        - name: node
+          containerPort: 6379
+          protocol: TCP          
+        env:
+        - name: REDIS_HOST
+          value: redis
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_PASSWORD 
+        volumeMounts:
+        - mountPath: /data
+          name: ediairflowlogs
+      volumes:
+      - name: ediairflowlogs
+        azureFile:
+          secretName: azure-secret
+          shareName: ediairflowlogs/redis
+          readOnly: false
+      imagePullSecrets:
+      - name: azure-secret

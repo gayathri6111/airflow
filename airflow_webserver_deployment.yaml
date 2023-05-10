@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webserver
+spec:
+  replicas: 1
+  selector:
+   matchLabels:
+     app: airflow  
+  template:
+    metadata:
+      labels:
+        app: airflow
+        tier: webserver
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: webserver
+        image: {{ACRName}}.azurecr.io/edi-modernization/airflow:{{BASEIMAGE_VERSION}}
+        envFrom:
+        - configMapRef:
+            name: config-airflow
+        ports:
+        - name: webserver        
+          containerPort: 8080
+          protocol: TCP
+        args: ["webserver"]
+        volumeMounts:
+        - mountPath: /usr/local/airflow/dags
+          name: ediairflowdags
+        - mountPath: /usr/local/airflow/logs
+          name: ediairflowlogs
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 60
+      volumes:
+      - name: ediairflowlogs
+        persistentVolumeClaim:
+          claimName: airflow-pv-claim
+      - name: ediairflowdags
+        azureFile:
+          secretName: azure-secret
+          shareName: ediairflowdags
+          readOnly: false          
+      imagePullSecrets:
+        - name: edi-registry

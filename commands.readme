@@ -1,0 +1,2 @@
+to initialize tables - airflow resetdb
+to create users - airflow create_user --role Admin --username admin --email admin --firstname admin --lastname admin --password admin

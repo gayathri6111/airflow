@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flower
+spec:
+  selector:
+   matchLabels:
+     app: airflow
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: airflow
+        tier: flower
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: flower
+        image: {{ACRName}}.azurecr.io/edi-modernization/airflow:{{BASEIMAGE_VERSION}}
+        envFrom:
+        - configMapRef:
+            name: config-airflow
+        ports:
+        - name: flower
+          containerPort: 5555
+          protocol: TCP
+        env:
+        - name: FLOWER_PORT
+          value: "5555"
+        volumeMounts:
+        - mountPath: /usr/local/airflow/
+          name: ediairflowlogs
+        args: ["flower"]
+      volumes:
+      - name: ediairflowlogs
+        persistentVolumeClaim:
+          claimName: airflow-pv-claim
+      imagePullSecrets:
+      - name: edi-registry
